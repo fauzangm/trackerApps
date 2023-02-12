@@ -21,12 +21,18 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
 import com.id.learnmaps.R
 import com.id.learnmaps.databinding.FragmentMapsBinding
+import com.id.learnmaps.utils.ExtensionFunctions.disable
 import com.id.learnmaps.utils.ExtensionFunctions.hide
 import com.id.learnmaps.utils.ExtensionFunctions.show
+import com.id.learnmaps.utils.Permissions.hasBackgroundLocationPermission
+import com.id.learnmaps.utils.Permissions.requestBackgroundLocationPermission
+import com.vmadalin.easypermissions.EasyPermissions
+import com.vmadalin.easypermissions.dialogs.SettingsDialog
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-class MapsFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMyLocationButtonClickListener {
+class MapsFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMyLocationButtonClickListener,
+    EasyPermissions.PermissionCallbacks {
 
     private var _binding: FragmentMapsBinding? = null
     private val binding get() = _binding!!
@@ -49,7 +55,7 @@ class MapsFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMyLocationButto
 
     private fun initUi() {
         binding.startButton.setOnClickListener {
-//            onStartButtonClicked()
+            onStartButtonClicked()
         }
         binding.stopButton.setOnClickListener {
 //            onStopButtonClicked()
@@ -66,6 +72,7 @@ class MapsFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMyLocationButto
     }
 
 
+    @SuppressLint("MissingPermission")
     override fun onMapReady(googleMap: GoogleMap) {
         map = googleMap
         map.uiSettings.apply {
@@ -76,16 +83,16 @@ class MapsFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMyLocationButto
             isCompassEnabled = false
             isScrollGesturesEnabled = false
         }
-        if (ActivityCompat.checkSelfPermission(
-                requireContext(),
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
-                requireContext(),
-                Manifest.permission.ACCESS_COARSE_LOCATION
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            return
-        }
+//        if (ActivityCompat.checkSelfPermission(
+//                requireContext(),
+//                Manifest.permission.ACCESS_FINE_LOCATION
+//            ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
+//                requireContext(),
+//                Manifest.permission.ACCESS_COARSE_LOCATION
+//            ) != PackageManager.PERMISSION_GRANTED
+//        ) {
+//            return
+//        }
         map.isMyLocationEnabled = true
         map.setOnMyLocationButtonClickListener(this)
 
@@ -99,6 +106,42 @@ class MapsFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMyLocationButto
             binding.startButton.show()
         }
         return false
+    }
+
+
+    private fun onStartButtonClicked() {
+        if (hasBackgroundLocationPermission(requireContext())) {
+            binding.startButton.disable()
+            binding.startButton.hide()
+            binding.stopButton.show()
+        } else {
+            requestBackgroundLocationPermission(this)
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+//        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        EasyPermissions.onRequestPermissionsResult(requestCode,permissions,grantResults,this)
+    }
+    override fun onPermissionsDenied(requestCode: Int, perms: List<String>) {
+        if (EasyPermissions.somePermissionPermanentlyDenied(this, perms)) {
+            SettingsDialog.Builder(requireActivity()).build().show()
+        } else {
+            requestBackgroundLocationPermission(this)
+        }
+    }
+
+    override fun onPermissionsGranted(requestCode: Int, perms: List<String>) {
+        onStartButtonClicked()
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null
     }
 
 
